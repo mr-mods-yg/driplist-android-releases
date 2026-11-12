@@ -1,4 +1,4 @@
-name: Publish Android release
+name: Publish signed Android release
 
 on:
   push:
@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   publish:
+    if: github.event.deleted != true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -20,18 +21,18 @@ jobs:
           path: public-main
           fetch-depth: 0
 
-      - name: Update changelog and publish release assets
+      - name: Verify and publish the signed APK
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
+          sha256sum -c SHA256SUMS
           version=$(jq -r '.versionName' build-info.json)
           tag="v${version}"
+          package_id=$(jq -r '.packageId' build-info.json)
+          test "$package_id" = 'in.driplist.app'
           test -s driplist.apk
-          test -s SHA256SUMS
-          test -s build-info.json
-          test -s assetlinks.json
           test -s RELEASE_NOTES.md
 
           prerelease_args=()
@@ -39,17 +40,32 @@ jobs:
           if [[ "$tag" == v0.* || "$tag" == *-* ]]; then
             prerelease_args+=(--prerelease)
             release_type=prerelease
+          else
+            prerelease_args+=(--latest)
           fi
 
-          if ! grep -Fq "**Tag:** \`$tag\`" public-main/CHANGELOG.md; then
-            published=$(date -u +%Y-%m-%d)
-            {
-              printf '## Driplist Android %s (%s)\n\n**Tag:** \`%s\`  \n**Published:** %s\n\n' "$version" "$release_type" "$tag" "$published"
-              cat RELEASE_NOTES.md
-              printf '\n'
-              cat public-main/CHANGELOG.md
-            } > public-main/CHANGELOG.updated
-            mv public-main/CHANGELOG.updated public-main/CHANGELOG.md
+          RELEASE_TAG="$tag" RELEASE_VERSION="$version" RELEASE_TYPE="$release_type" \
+            python3 - <<'PY'
+          import datetime
+          import os
+          from pathlib import Path
+
+          path = Path('public-main/CHANGELOG.md')
+          text = path.read_text()
+          tag = os.environ['RELEASE_TAG']
+          if f'**Tag:** `{tag}`' not in text:
+              header = '# Changelog\n\nPublished Driplist Android releases, newest first. Prereleases are marked explicitly.\n\n'
+              if not text.startswith(header):
+                  raise SystemExit('Unexpected CHANGELOG.md header; refusing to rewrite it.')
+              version = os.environ['RELEASE_VERSION']
+              kind = os.environ['RELEASE_TYPE']
+              date = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+              notes = Path('RELEASE_NOTES.md').read_text().strip()
+              entry = f'## Driplist Android {version} ({kind})\n\n**Tag:** `{tag}`  \n**Published:** {date}\n\n{notes}\n\n'
+              path.write_text(header + entry + text[len(header):])
+          PY
+
+          if ! git -C public-main diff --quiet -- CHANGELOG.md; then
             git -C public-main config user.name 'github-actions[bot]'
             git -C public-main config user.email '41898282+github-actions[bot]@users.noreply.github.com'
             git -C public-main add CHANGELOG.md
