@@ -1,0 +1,73 @@
+name: Publish Android release
+
+on:
+  push:
+    branches:
+      - release-incoming
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: main
+          path: public-main
+          fetch-depth: 0
+
+      - name: Update changelog and publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          version=$(jq -r '.versionName' build-info.json)
+          tag="v${version}"
+          test -s driplist.apk
+          test -s SHA256SUMS
+          test -s build-info.json
+          test -s assetlinks.json
+          test -s RELEASE_NOTES.md
+
+          prerelease_args=()
+          release_type=stable
+          if [[ "$tag" == v0.* || "$tag" == *-* ]]; then
+            prerelease_args+=(--prerelease)
+            release_type=prerelease
+          fi
+
+          if ! grep -Fq "**Tag:** \`$tag\`" public-main/CHANGELOG.md; then
+            published=$(date -u +%Y-%m-%d)
+            {
+              printf '## Driplist Android %s (%s)\n\n**Tag:** \`%s\`  \n**Published:** %s\n\n' "$version" "$release_type" "$tag" "$published"
+              cat RELEASE_NOTES.md
+              printf '\n'
+              cat public-main/CHANGELOG.md
+            } > public-main/CHANGELOG.updated
+            mv public-main/CHANGELOG.updated public-main/CHANGELOG.md
+            git -C public-main config user.name 'github-actions[bot]'
+            git -C public-main config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git -C public-main add CHANGELOG.md
+            git -C public-main commit -m "Add Android ${version} changelog"
+            git -C public-main push origin HEAD:main
+          fi
+
+          assets=(driplist.apk SHA256SUMS build-info.json assetlinks.json)
+          if gh release view "$tag" --repo "$GH_REPO" >/dev/null 2>&1; then
+            gh release upload "$tag" "${assets[@]}" --repo "$GH_REPO" --clobber
+            gh release edit "$tag" --repo "$GH_REPO" \\
+              --title "Driplist Android ${version}" \\
+              --notes-file RELEASE_NOTES.md "${prerelease_args[@]}"
+          else
+            gh release create "$tag" "${assets[@]}" --repo "$GH_REPO" \\
+              --target main \\
+              --title "Driplist Android ${version}" \\
+              --notes-file RELEASE_NOTES.md "${prerelease_args[@]}"
+          fi
+
+          gh api --method DELETE "repos/${GH_REPO}/git/refs/heads/release-incoming" || true
