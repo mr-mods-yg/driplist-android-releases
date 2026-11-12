@@ -76,13 +76,13 @@ jobs:
           assets=(driplist.apk SHA256SUMS build-info.json assetlinks.json)
           if gh release view "$tag" --repo "$GH_REPO" >/dev/null 2>&1; then
             gh release upload "$tag" "${assets[@]}" --repo "$GH_REPO" --clobber
-            gh release edit "$tag" --repo "$GH_REPO" \\
-              --title "Driplist Android ${version}" \\
+            gh release edit "$tag" --repo "$GH_REPO" \
+              --title "Driplist Android ${version}" \
               --notes-file RELEASE_NOTES.md "${prerelease_args[@]}"
           else
-            gh release create "$tag" "${assets[@]}" --repo "$GH_REPO" \\
-              --target main \\
-              --title "Driplist Android ${version}" \\
+            gh release create "$tag" "${assets[@]}" --repo "$GH_REPO" \
+              --target main \
+              --title "Driplist Android ${version}" \
               --notes-file RELEASE_NOTES.md "${prerelease_args[@]}"
           fi
 
