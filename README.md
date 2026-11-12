@@ -42,8 +42,9 @@ regular use, install the latest stable release.
 
 ## About this repository
 
-This repository contains public release downloads and release notes. It does
-not contain the app's source code.
+This repository contains public release downloads, release notes, and the
+automation that publishes signed APKs after a release build passes. It does not
+contain the app's source code.
 
 The Driplist Android application is distributed under the Apache License 2.0;
 see [LICENSE](LICENSE).
