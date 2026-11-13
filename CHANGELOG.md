@@ -2,6 +2,22 @@
 
 Published Driplist Android releases, newest first. Prereleases are marked explicitly.
 
+## Driplist Android 1.3.0-rc.3 (prerelease)
+
+**Tag:** `v1.3.0-rc.3`  
+**Published:** 2026-11-13
+
+Driplist Android 1.3.0-rc.3 is a test build for prerelease update detection.
+
+- An installed 1.3.0-rc.2 build should offer this newer prerelease at startup.
+- Prerelease builds check for newer prereleases; stable builds check for newer stable releases.
+- Offers to download the signed APK and opens Android's installer after download.
+- Android asks the user to confirm installation; silent app updates are not available to sideloaded apps.
+- Includes pull-to-refresh and the existing Google sign-in, push notification, and keyboard layout improvements.
+- Keeps the app ID and signing key unchanged. Install over the previous Driplist Android release.
+
+This is a prerelease test build. Install 1.3.0-rc.2 first to exercise the update prompt.
+
 ## Driplist Android 1.3.0-rc.2 (prerelease)
 
 **Tag:** `v1.3.0-rc.2`  
